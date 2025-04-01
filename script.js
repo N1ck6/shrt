@@ -77,7 +77,7 @@ function setCookie(name, value) {
 function copyToClipboard(code) {
     const dummy = document.createElement('input');
     document.body.appendChild(dummy);
-    dummy.value = `${window.location.origin}/?code=${code}`;
+    dummy.value = `https://n1ck6.github.io/shrt/?code=${code}`;
     dummy.select();
     dummy.setSelectionRange(0, 99999);
     navigator.clipboard.writeText(dummy.value);
