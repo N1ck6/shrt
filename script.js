@@ -69,7 +69,7 @@ const notification = document.getElementById('notification');
         function copyToClipboard(code) {
             const dummy = document.createElement('input');
             document.body.appendChild(dummy);
-            dummy.value = `${window.location.origin}/?code=${code}`;
+            dummy.value = `${window.location.origin + window.location.pathname}/?code=${code}`;
             dummy.select();
             document.execCommand('copy');
             document.body.removeChild(dummy);
