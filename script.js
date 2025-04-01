@@ -1,143 +1,138 @@
-body {
-    margin: 0;
-    min-height: 100vh;
-    background: #F5E6D3;
-    font-family: Arial, sans-serif;
-    position: relative;
-    user-select: none;
+function showNotification() {
+    notification = document.getElementById('notification');
+    notification.style.display = 'block';
+    setTimeout(() => notification.style.display = 'none', 2000);
 }
 
-.input-container {
-    position: relative;
-    padding-top: 10%;
-    width: 40vw;
-    padding-left: 30%;
-    display: flex;
-    opacity: 0;
-    animation: fadeIn 1.5s ease forwards;
-    align-content: center;
+function shorten() {
+    const input = document.querySelector('.url-input');
+    const url = input.value.trim();
+    
+    if (!url) return;
+    
+    const urlPattern = /^(https?:\/\/)?[\w.-]+\.[a-z]{2,}(\/\S*)?$/i;
+    if (!urlPattern.test(url)) {
+        alert('Введите корректную ссылку');
+        return;
+    }
+
+    cookie_link(url);
+    input.value = '';
 }
 
-@keyframes fadeIn {
-    to { opacity: 1; }
+function cookie_link(longUrl) {
+    const existingCode = getCookieByValue(longUrl);
+    if (existingCode) {
+        copyToClipboard(existingCode);
+        showNotification();
+        return;
+    }
+
+    let code;
+    do {
+        code = generateCode(5);
+    } while (getCookie(code));
+
+    setCookie(code, JSON.stringify({
+    url: longUrl,
+    timestamp: new Date().toISOString()
+    }));
+    copyToClipboard(code);
+    showNotification();
+    loadCodes();
 }
 
-.url-input {
-    width: 40vw;
-    padding: 15px;
-    border: 2px solid #5a381f;
-    border-radius: 8px 0 0 8px;
-    font-size: 16px;
+function generateCode(length) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
 }
 
-.shorten-btn {
-    background: #5a381f;
-    border: none;
-    padding: 0 20px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    border-radius: 0 8px 8px 0;
-    transition: background 0.3s;
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        const cookieValue = decodeURIComponent(parts.pop().split(';').shift());
+        const parsed = JSON.parse(cookieValue);
+        return parsed.url;
+    }
+    return undefined;
 }
 
-.shorten-btn:hover {
-    background: #5a381f;
+function getCookieByValue(value) {
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+        const [name, val] = cookie.trim().split('=');
+        if (val === value) return name;
+    }
 }
 
-.notification {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: rgba(212, 176, 140, 0.9);
-    color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    display: none;
-    text-align: center;
-    animation: slideIn 0.5s ease forwards;
+function setCookie(name, value) {
+    document.cookie = `${name}=${value}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/`;
 }
 
-@keyframes slideIn {
-    from { transform: translateX(100%); }
-    to { transform: translateX(0); }
+function copyToClipboard(code) {
+    const dummy = document.createElement('input');
+    document.body.appendChild(dummy);
+    dummy.value = `${window.location.origin}/?code=${code}`;
+    dummy.select();
+    dummy.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(dummy.value);
+    document.body.removeChild(dummy);
 }
 
-.delete {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 3%;
-    cursor: pointer;
-    transition: transform 0.3s;
+function transport() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (!code) return;
+    const url = getCookie(code);
+    if (url) window.location.href = url;
 }
 
-.delete:hover {
-    transform: scale(1.1);
+function deleteCookies() {
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+        const name = cookie.trim().split('=')[0];
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+    }
+    loadCodes();
 }
 
-.clear-text {
-    color: #23160c;
-    font-size: 18px;
-    font-weight: bold;
-    background: #FFE6E6;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+function loadCodes() {
+    const codesGrid = document.getElementById('codesGrid');
+    codesGrid.innerHTML = '';
+    
+    const cookies = document.cookie.split(';')
+      .map(cookie => cookie.trim())
+      .filter(cookie => cookie)
+      .map(cookie => {
+        const [name, value] = cookie.split('=');
+        try {
+          return {
+            code: name,
+            ...JSON.parse(decodeURIComponent(value)),
+            timestamp: new Date(JSON.parse(decodeURIComponent(value)).timestamp)
+          };
+        } catch {
+          return null;
+        }
+      })
+      .filter(item => item && item.url)
+      .sort((a, b) => b.timestamp - a.timestamp);
+  
+    cookies.forEach(item => {
+      const codeItem = document.createElement('div');
+      codeItem.className = 'code-item';
+      codeItem.setAttribute('onclick', `window.location.href='${item.url}'`);
+      codeItem.innerHTML = `
+        <div class="code-title">${item.code}</div>
+        <div class="code-url">${item.url}</div>
+      `;
+      codesGrid.appendChild(codeItem);
+    });
 }
-
-svg {
-    width: 100%;
-    height: 100%;
-}
-
-.hidden { display: none; }
-
-.codes-section {
-    position: relative;
-    width: 80%;
-    margin: 5% auto 0;
-    max-width: 1200px;
-}
-
-.codes-heading {
-    color: #6B4F4F;
-    font-size: 1.5em;
-    text-align: center;
-    margin-bottom: 3%;
-}
-
-.codes-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 2%;
-    width: 100%;
-}
-
-.code-item {
-    background: #F5E6D3;
-    border-radius: 8px;
-    padding: 3% 4%;
-    margin-bottom: 2%;
-    transition: transform 0.2s;
-    cursor: pointer;
-    user-select: none;
-}
-
-.code-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    background-color: #e9dccd;
-}
-
-.code-title {
-    font-weight: bold;
-    color: #6B4F4F;
-    margin-bottom: 2%;
-}
-
-.code-url {
-    color: #4A3A3A;
-    word-break: break-all;
-    font-size: 0.9em;
-}
+transport();
+loadCodes();
